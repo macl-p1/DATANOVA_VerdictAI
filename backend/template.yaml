@@ -111,6 +111,11 @@ Resources:
       CodeUri: functions/extract/
       Handler: app.lambda_handler
       Timeout: 120
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
 
   RulesFunction:
     Type: AWS::Serverless::Function
@@ -126,6 +131,11 @@ Resources:
       CodeUri: functions/explain/
       Handler: app.lambda_handler
       Timeout: 120
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
 
   QueryFunction:
     Type: AWS::Serverless::Function
