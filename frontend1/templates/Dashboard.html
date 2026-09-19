@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Case register | VerdictAI</title>
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <script src="../js/common.js" defer></script>
+  <script src="../js/dashboard.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header-left"><a class="app-wordmark" href="dashboard.html">VerdictAI</a><nav class="app-nav" aria-label="Primary"><a class="nav-link" href="upload.html">Upload</a><a class="nav-link" href="dashboard.html" aria-current="page">Case register</a></nav></div>
+      <div class="app-header-right"><button type="button" class="theme-toggle theme-toggle-compact" data-theme-toggle aria-label="Toggle dark mode" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true"></span></button><span class="app-user-email"></span><button type="button" class="btn btn-ghost btn-small" data-logout>Sign out</button></div>
+    </header>
+    <main class="view-root">
+      <section aria-labelledby="dashboard-heading">
+        <div class="view-header"><p class="view-eyebrow">Case register</p><h1 id="dashboard-heading">All cases</h1><p class="view-sub">Sorted by days overdue. This ordering is fixed by the rule engine - nothing here is ranked by a model.</p></div>
+        <div class="dashboard-controls"><div class="field field-inline"><label for="case-search" class="sr-only">Search cases</label><input type="search" id="case-search" placeholder="Search by name, case number or section"></div><div class="filter-group" role="group" aria-label="Filter cases"><button class="filter-chip is-active" data-filter="all">All</button><button class="filter-chip" data-filter="red">Past full term</button><button class="filter-chip" data-filter="amber">Past half term</button><button class="filter-chip" data-filter="yellow">First-time, past third</button><button class="filter-chip" data-filter="review">Needs review</button><button class="filter-chip" data-filter="barred">Barred by law</button><button class="filter-chip" data-filter="gray">Not yet eligible</button></div></div>
+        <p class="table-caption" id="results-count"></p>
+        <div class="table-wrap"><table class="case-table" id="case-table"><thead><tr><th>Flag</th><th>Case</th><th>Person</th><th>Section(s)</th><th>In custody</th><th>Days overdue</th></tr></thead><tbody id="case-table-body"></tbody></table><div id="dashboard-empty" class="empty-state" hidden><h2>No cases match</h2><p>Try a different search term or clear the flag filter.</p><button type="button" class="btn btn-ghost" id="clear-filters-btn">Clear filters</button></div></div>
+      </section>
+    </main>
+    <footer class="app-footer"><p>Case data is synthetic and for a hackathon demonstration only. It is not legal advice.</p></footer>
+  </div>
+</body>
+</html>

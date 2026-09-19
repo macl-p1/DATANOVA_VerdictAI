@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload case | VerdictAI</title>
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/upload.css">
+  <script src="../js/common.js" defer></script>
+  <script src="../js/upload.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header-left"><a class="app-wordmark" href="dashboard.html">VerdictAI</a><nav class="app-nav" aria-label="Primary"><a class="nav-link" href="upload.html" aria-current="page">Upload</a><a class="nav-link" href="dashboard.html">Case register</a></nav></div>
+      <div class="app-header-right"><button type="button" class="theme-toggle theme-toggle-compact" data-theme-toggle aria-label="Toggle dark mode" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true"></span></button><span class="app-user-email"></span><button type="button" class="btn btn-ghost btn-small" data-logout>Sign out</button></div>
+    </header>
+    <main class="view-root">
+      <section aria-labelledby="upload-heading">
+        <div class="view-header"><p class="view-eyebrow">Step one</p><h1 id="upload-heading">Add a case document</h1><p class="view-sub">Upload a chargesheet or FIR. The pipeline extracts the facts that matter and checks them against Section 479 BNSS.</p></div>
+        <div class="upload-layout">
+          <div>
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload a PDF. Press Enter to browse or drag a file here."><input type="file" id="file-input" accept="application/pdf" hidden><span class="dropzone-symbol" aria-hidden="true">↑</span><p class="dropzone-title">Drop a PDF here, or click to browse</p><p class="dropzone-sub">Chargesheets, FIRs and bail orders - up to 20MB</p></div>
+            <p id="upload-file-error" class="form-alert" role="alert" hidden></p>
+          </div>
+          <section class="upload-progress-card" id="upload-progress-card" hidden aria-live="polite" aria-label="Upload progress">
+            <p class="upload-filename" id="upload-filename"></p>
+            <ol class="stepper" id="upload-stepper"><li data-step="uploaded"><span class="step-dot"></span>Uploaded</li><li data-step="reading"><span class="step-dot"></span>Reading document</li><li data-step="extracting"><span class="step-dot"></span>Extracting facts</li><li data-step="checking"><span class="step-dot"></span>Checking law</li><li data-step="done"><span class="step-dot"></span>Done</li></ol>
+            <p class="upload-status-text" id="upload-status-text"></p>
+            <div class="upload-actions" id="upload-actions" hidden><a class="btn btn-primary" id="view-new-case-btn" href="case-detail.html">View case</a><button type="button" class="btn btn-ghost" id="upload-another-btn">Upload another</button></div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <footer class="app-footer"><p>Case data is synthetic and for a hackathon demonstration only. It is not legal advice.</p></footer>
+  </div>
+</body>
+</html>
