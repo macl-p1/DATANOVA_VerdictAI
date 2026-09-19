@@ -1,5 +1,5 @@
 from datetime import date
-from shared.schemas import Extracted, RuleResult
+from schemas import Extracted, RuleResult
 
 
 def evaluate(e: Extracted, statutes: dict[str, dict], today: date) -> RuleResult:
@@ -63,3 +63,15 @@ def evaluate(e: Extracted, statutes: dict[str, dict], today: date) -> RuleResult
         flag="NOT_YET", days_in_custody=days_in_custody,
         days_overdue=None, rule_fired="Below all thresholds"
     )
+def lambda_handler(event, context):
+    extracted = Extracted(**event)
+
+    # TODO: replace with a real DynamoDB read from the Statutes table
+    statutes = {
+        "IPC#379": {"maxYears": 3, "lifeOrDeath": False},
+        "IPC#302": {"maxYears": 0, "lifeOrDeath": True},
+    }
+
+    result = evaluate(extracted, statutes, today=date.today())
+
+    return {"statusCode": 200, "body": result.model_dump_json()}

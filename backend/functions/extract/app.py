@@ -1,5 +1,5 @@
 import boto3, json
-from shared.schemas import Extracted
+from schemas import Extracted
 
 bedrock = boto3.client("bedrock-runtime")
 MODEL_ID = "us.meta.llama4-maverick-17b-instruct-v1:0"

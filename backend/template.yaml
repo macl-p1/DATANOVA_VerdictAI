@@ -5,7 +5,7 @@ Description: VerdictAI backend
 Globals:
   Function:
     Runtime: python3.13
-    Architectures: [arm64]
+    Architectures: [x86_64]
     Timeout: 60
     MemorySize: 512
     Layers: [!Ref SharedLayer]
@@ -115,7 +115,11 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeModel
-              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-east-1::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-east-2::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-west-2::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
 
   RulesFunction:
     Type: AWS::Serverless::Function
@@ -135,8 +139,11 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: bedrock:InvokeModel
-              Resource: !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
-
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-east-1::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-east-2::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-west-2::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
   QueryFunction:
     Type: AWS::Serverless::Function
     Properties:
