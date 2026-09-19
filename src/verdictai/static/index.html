@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VerdictAI — Evidence Extraction</title>
+  <style>
+    :root { color-scheme: light; --ink:#172033; --muted:#64748b; --accent:#2563eb; --soft:#eff6ff; --line:#dbe3ef; --warn:#b45309; --danger:#b91c1c; }
+    * { box-sizing:border-box; } body { margin:0; background:#f7f9fc; color:var(--ink); font:16px/1.5 Inter, ui-sans-serif, system-ui, sans-serif; }
+    main { max-width:960px; margin:0 auto; padding:48px 24px 80px; } header { margin-bottom:30px; } h1 { font-size:clamp(2rem,5vw,3.25rem); letter-spacing:-.05em; margin:0; } h1 span { color:var(--accent); } h2 { font-size:1.15rem; margin:0 0 14px; } .intro { color:var(--muted); max-width:720px; margin:12px 0 0; }
+    .notice { margin:22px 0; padding:12px 15px; background:#fff8e8; border-left:4px solid #f59e0b; color:#78350f; border-radius:4px; font-size:.92rem; }
+    .card { background:white; border:1px solid var(--line); border-radius:14px; box-shadow:0 8px 30px #0f172a0a; padding:24px; margin-top:20px; } label { display:block; font-weight:650; margin-bottom:7px; } input, textarea { width:100%; border:1px solid #b9c6d8; border-radius:8px; padding:11px 12px; color:var(--ink); font:inherit; } input:focus, textarea:focus { outline:3px solid #bfdbfe; border-color:var(--accent); } textarea { min-height:185px; resize:vertical; } .row { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:end; } .actions { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; } button { cursor:pointer; border-radius:8px; padding:10px 15px; font:inherit; font-weight:650; } .primary { background:var(--accent); border:1px solid var(--accent); color:white; } .secondary { color:var(--accent); background:white; border:1px solid #93c5fd; } button:disabled { opacity:.6; cursor:wait; }
+    #status { min-height:24px; margin:14px 0 0; color:var(--muted); } #status.error { color:var(--danger); } .hidden { display:none; } .summary { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; } .badge { background:var(--soft); color:#1d4ed8; border-radius:999px; padding:5px 10px; font-size:.84rem; font-weight:650; } .badge.review { color:var(--warn); background:#fff7ed; }
+    .entity { border-top:1px solid var(--line); padding:15px 0; } .entity:first-of-type { border-top:0; } .entity-top { display:flex; justify-content:space-between; gap:12px; align-items:baseline; } .type { color:#1d4ed8; font-size:.78rem; font-weight:750; letter-spacing:.06em; } .confidence { color:var(--muted); font-size:.86rem; } code { background:#f1f5f9; padding:2px 5px; border-radius:4px; } .evidence { margin:6px 0 0; color:#334155; } .metadata { color:var(--muted); font-size:.86rem; margin:5px 0 0; } .empty { color:var(--muted); margin:0; } footer { margin-top:22px; color:var(--muted); font-size:.85rem; } @media (max-width:600px) { main { padding:30px 16px; } .row { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Verdict<span>AI</span></h1>
+      <p class="intro">Extract evidence-backed facts from legal-document text. Results are extraction evidence, not legal advice or a legal decision.</p>
+    </header>
+    <div class="notice">Use OCR or plain text only. Review low-confidence extractions against the original document.</div>
+    <section class="card" aria-labelledby="extract-title">
+      <h2 id="extract-title">Public-case evidence review</h2>
+      <p class="intro" style="margin:0 0 16px">Load a local text file or paste a public record. VerdictAI extracts configured facts and evidence only; the document is sent for analysis but is not saved by this application.</p>
+      <div class="row"><div><label for="caseTitle">Case title</label><input id="caseTitle" value="Demo public case" maxlength="300"></div></div>
+      <div style="margin-top:16px"><label for="sourceUrl">Public source URL <span class="metadata">(optional)</span></label><input id="sourceUrl" type="url" value="https://example.org/public-case" placeholder="https://example.org/case"></div>
+      <div style="margin-top:16px"><label for="caseFile">Load local case text <span class="metadata">(.txt or .md)</span></label><input id="caseFile" type="file" accept=".txt,.md,text/plain,text/markdown"><p class="metadata" id="fileStatus">No local file selected.</p></div>
+      <div class="row"><div><label for="documentId">Document ID</label><input id="documentId" value="DEMO_001" maxlength="120"></div><button class="secondary" id="example" type="button">Load example</button></div>
+      <div style="margin-top:16px"><label for="sourceText">Document text</label><textarea id="sourceText" placeholder="Paste legal-document text here…"></textarea></div>
+      <div class="actions"><button class="primary" id="extract" type="button">Review public case</button><a href="/docs" target="_blank" rel="noreferrer">API documentation</a></div>
+      <p id="status" role="status"></p>
+    </section>
+    <section class="card hidden" id="results" aria-live="polite"><h2>Evidence review</h2><div id="summary" class="summary"></div><div id="entities"></div></section>
+    <footer>VerdictAI preserves source text and offsets. Confidence is a model score, not legal certainty.</footer>
+  </main>
+  <script>
+    const example = "The accused was arrested on 15 January 2024 under Section 303.";
+    const $ = id => document.getElementById(id);
+    let localSourceLabel = "Pasted text";
+    $("example").onclick = () => { $("sourceText").value = example; $("documentId").value = "DEMO_001"; $("caseTitle").value = "Demo public case"; $("sourceUrl").value = "https://example.org/public-case"; localSourceLabel = "Example text"; $("fileStatus").textContent = "Example text loaded."; };
+    $("caseFile").onchange = async event => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!/\.(txt|md)$/i.test(file.name)) { $("fileStatus").textContent = "Choose a .txt or .md file."; event.target.value = ""; return; }
+      try {
+        $("sourceText").value = await file.text();
+        $("documentId").value = file.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9_-]/g, "_") || "LOCAL_CASE";
+        $("caseTitle").value = file.name.replace(/\.[^.]+$/, "");
+        $("sourceUrl").value = "";
+        localSourceLabel = `Local file: ${file.name}`;
+        $("fileStatus").textContent = `${file.name} loaded into the text area. Review it before extraction.`;
+      } catch (_) { $("fileStatus").textContent = "The selected file could not be read."; }
+    };
+    function escapeHtml(value) { const node = document.createElement("span"); node.textContent = value; return node.innerHTML; }
+    $("extract").onclick = async () => {
+      const documentId = $("documentId").value.trim(), text = $("sourceText").value.trim(), caseTitle = $("caseTitle").value.trim(), sourceUrl = $("sourceUrl").value.trim();
+      const status = $("status"), button = $("extract");
+      if (!documentId || !text || !caseTitle) { status.textContent = "Enter a case title, document ID, and document text."; status.className = "error"; return; }
+      button.disabled = true; status.className = ""; status.textContent = "Extracting evidence…";
+      try {
+        const response = await fetch("/review-public-case", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({document_id:documentId, text, case_title:caseTitle, source_url:sourceUrl || null, source_label:sourceUrl ? "Public source URL" : localSourceLabel}) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || "The extraction request failed.");
+        render(data); status.textContent = "Evidence review complete.";
+      } catch (error) { status.textContent = error.message; status.className = "error"; }
+      finally { button.disabled = false; }
+    };
+    function render(data) {
+      $("results").classList.remove("hidden");
+      const extraction = data.extraction;
+      $("summary").innerHTML = `<span class="badge">${extraction.entities.length} entities found</span>${extraction.needs_review ? '<span class="badge review">Review recommended</span>' : '<span class="badge">No review warning</span>'}`;
+      const source = data.source_url ? `<p class="metadata">Source: <a href="${escapeHtml(data.source_url)}" target="_blank" rel="noreferrer">${escapeHtml(data.case_title)}</a></p>` : `<p class="metadata">Source: ${escapeHtml(data.source_label)}</p>`;
+      const reasons = data.review_guidance.length ? `<p class="metadata">${data.review_guidance.map(escapeHtml).join(" · ")}</p>` : "";
+      $("entities").innerHTML = extraction.entities.length ? extraction.entities.map(entity => {
+        const e = entity.evidence, normalized = entity.normalized_value ? `<span class="metadata">Normalized: <code>${escapeHtml(entity.normalized_value)}</code></span>` : "";
+        return `<article class="entity"><div class="entity-top"><span class="type">${escapeHtml(entity.type)}</span><span class="confidence">${(e.confidence * 100).toFixed(1)}% confidence</span></div><p class="evidence">${escapeHtml(entity.value)}</p>${normalized}<p class="metadata">Document ${escapeHtml(e.document_id)} · characters ${e.start ?? "—"}–${e.end ?? "—"}${e.page ? " · page " + e.page : ""}</p></article>`;
+      }).join("") + source + reasons + `<p class="metadata">${escapeHtml(data.disclaimer)}</p>` : source + `<p class="empty">No entities were extracted from this text.</p>${reasons}<p class="metadata">${escapeHtml(data.disclaimer)}</p>`;
+    }
+  </script>
+</body>
+</html>

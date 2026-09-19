@@ -1,0 +1,15 @@
+torch==2.14.0
+transformers==4.48.3
+datasets==3.2.0
+accelerate==1.2.1
+evaluate==0.4.3
+seqeval==1.2.2
+scikit-learn==1.6.1
+pandas==2.2.3
+numpy==2.2.2
+PyYAML==6.0.2
+pydantic==2.10.6
+sentencepiece==0.2.2
+pytest==8.3.4
+fastapi==0.115.8
+uvicorn==0.34.0
