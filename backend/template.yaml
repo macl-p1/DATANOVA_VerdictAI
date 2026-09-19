@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: VerdictAI backend
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Architectures: [arm64]
+    Timeout: 60
+    MemorySize: 512
+    Layers: [!Ref SharedLayer]
+    Environment:
+      Variables:
+        CASES_TABLE: !Ref CasesTable
+        STATUTES_TABLE: !Ref StatutesTable
+        UPLOAD_BUCKET: !Ref UploadBucket
+
+Resources:
+
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: verdictai-shared
+      ContentUri: shared/
+      CompatibleRuntimes: [python3.13]
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: python3.13
+
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter7Days
+            Status: Enabled
+            ExpirationInDays: 7
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: [PUT, GET]
+            AllowedOrigins: ["*"]
+            AllowedHeaders: ["*"]
+
+  CasesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: caseId
+          AttributeType: S
+        - AttributeName: flag
+          AttributeType: S
+        - AttributeName: daysOverdue
+          AttributeType: N
+      KeySchema:
+        - AttributeName: caseId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: flag-daysOverdue-index
+          KeySchema:
+            - AttributeName: flag
+              KeyType: HASH
+            - AttributeName: daysOverdue
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  StatutesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: code
+          AttributeType: S
+      KeySchema:
+        - AttributeName: code
+          KeyType: HASH
+
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+
+  UploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/upload_url/
+      Handler: app.lambda_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref UploadBucket }
+        - DynamoDBCrudPolicy: { TableName: !Ref CasesTable }
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /cases/upload-url
+            Method: POST
+
+  ExtractFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/extract/
+      Handler: app.lambda_handler
+      Timeout: 120
+
+  RulesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/rules/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref StatutesTable }
+
+  ExplainFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/explain/
+      Handler: app.lambda_handler
+      Timeout: 120
+
+  QueryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/query/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref CasesTable }
+      Events:
+        GetAll:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /cases
+            Method: GET
+        GetOne:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /cases/{caseId}
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway base URL
+    Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod"
