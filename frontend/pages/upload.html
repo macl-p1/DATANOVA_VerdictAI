@@ -23,7 +23,7 @@
         <div class="view-header"><p class="view-eyebrow">Step one</p><h1 id="upload-heading">Add a case document</h1><p class="view-sub">Upload a chargesheet or FIR. The pipeline extracts the facts that matter and checks them against Section 479 BNSS.</p></div>
         <div class="upload-layout">
           <div>
-            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload a PDF or text file. Press Enter to browse or drag a file here."><input type="file" id="file-input" accept="application/pdf,text/plain,.pdf,.txt" hidden><span class="dropzone-symbol" aria-hidden="true">↑</span><p class="dropzone-title">Drop a PDF or .txt here, or click to browse</p><p class="dropzone-sub">Chargesheets, FIRs and bail orders - up to 20MB. PDFs are read with Textract.</p></div>
+            <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload a PDF or text file. Press Enter to browse or drag a file here."><input type="file" id="file-input" accept="application/pdf,text/plain,text/markdown,.pdf,.txt,.text,.md" hidden><span class="dropzone-symbol" aria-hidden="true">↑</span><p class="dropzone-title">Drop a PDF or text file here, or click to browse</p><p class="dropzone-sub">Chargesheets, FIRs and bail orders - up to 20MB. Text files are read directly; PDFs need Textract.</p></div>
             <p id="upload-file-error" class="form-alert" role="alert" hidden></p>
           </div>
           <section class="upload-progress-card" id="upload-progress-card" hidden aria-live="polite" aria-label="Upload progress">

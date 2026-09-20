@@ -351,3 +351,126 @@ def test_query_follows_pages_until_the_limit():
 
     table2 = FakeTable()
     assert len(collect(table2, limit=3)) == 3
+
+
+# --- document routing: the text path must never depend on Textract ---
+
+def _client_error(code):
+    from botocore.exceptions import ClientError
+    return ClientError({"Error": {"Code": code, "Message": code}}, "StartDocumentTextDetection")
+
+
+def test_plain_text_is_read_without_textract():
+    from functions.textract_extract.app import decode_if_text
+    body = "The accused was arrested on 15 January 2024 under BNS Section 303(2).".encode()
+    assert decode_if_text(body) is not None
+
+
+def test_a_pdf_is_never_mistaken_for_text():
+    from functions.textract_extract.app import decode_if_text
+    assert decode_if_text(b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n") is None
+
+
+def test_binary_is_not_mistaken_for_text():
+    from functions.textract_extract.app import decode_if_text
+    assert decode_if_text(bytes(range(256)) * 4) is None
+    assert decode_if_text(b"text with a \x00 null byte in it") is None
+
+
+def test_text_file_named_pdf_still_takes_the_text_route():
+    """The uploader's extension is not trusted: routing is by content, so this
+    works even while Textract is unavailable."""
+    from functions.textract_extract.app import decode_if_text
+    assert decode_if_text("Arrested on 3 March 2020 under IPC#379.".encode()) is not None
+
+
+def test_utf8_bom_and_accents_survive():
+    from functions.textract_extract.app import decode_if_text
+    assert decode_if_text("﻿Accused: Farhan Sheikh — arrested 2019".encode("utf-8")) \
+        .startswith("Accused")
+
+
+def test_empty_upload_is_not_treated_as_text():
+    from functions.textract_extract.app import decode_if_text
+    assert decode_if_text(b"") is None
+    assert decode_if_text(b"   \n\t  ") is None
+
+
+def test_missing_textract_subscription_is_explained_not_retried():
+    from functions.textract_extract.app import classify, DocumentUnreadable
+    result = classify(_client_error("SubscriptionRequiredException"), "StartDocumentTextDetection")
+    assert isinstance(result, DocumentUnreadable)
+    assert ".txt" in str(result)
+    assert "not available to this AWS account" in str(result)
+
+
+def test_a_broken_document_is_reported_as_a_document_problem():
+    from functions.textract_extract.app import classify, DocumentUnreadable
+    result = classify(_client_error("UnsupportedDocumentException"), "StartDocumentTextDetection")
+    assert isinstance(result, DocumentUnreadable)
+    assert "could not read this document" in str(result)
+
+
+def test_an_unknown_textract_error_is_not_dressed_up():
+    from functions.textract_extract.app import classify, DocumentUnreadable
+    result = classify(_client_error("SomethingNewException"), "StartDocumentTextDetection")
+    assert not isinstance(result, DocumentUnreadable)
+
+
+def test_throttling_is_retried_then_surfaces():
+    from functions.textract_extract import app as textract_app
+    calls = {"n": 0}
+
+    def flaky(**kwargs):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise _client_error("ThrottlingException")
+        return {"JobId": "ok"}
+
+    textract_app.RETRY_BACKOFF = (0, 0, 0)
+    assert textract_app.call_with_retry(flaky)["JobId"] == "ok"
+    assert calls["n"] == 3
+
+
+def test_a_subscription_error_is_not_retried():
+    from functions.textract_extract import app as textract_app
+    calls = {"n": 0}
+
+    def always(**kwargs):
+        calls["n"] += 1
+        raise _client_error("SubscriptionRequiredException")
+
+    textract_app.RETRY_BACKOFF = (0, 0, 0)
+    try:
+        textract_app.call_with_retry(always)
+        raise AssertionError("should have raised")
+    except textract_app.DocumentUnreadable:
+        pass
+    assert calls["n"] == 1, "retrying a missing subscription wastes the Lambda timeout"
+
+
+def test_case_id_resolves_for_any_extension():
+    """A .txt or .pdf was fine, anything else was orphaned in UPLOADED."""
+    from functions.textract_extract.app import KEY_PATTERN
+    from functions.write_result.app import resolve_case_id
+    for ext in ("txt", "pdf", "md", "TIFF", "png"):
+        key = f"uploads/c1c6fa5a-8eff-4cd8-b2db-3ed821339577.{ext}"
+        assert KEY_PATTERN.search(key).group(1) == "c1c6fa5a-8eff-4cd8-b2db-3ed821339577"
+        assert resolve_case_id({"detail": {"object": {"key": key}}}) == "c1c6fa5a-8eff-4cd8-b2db-3ed821339577"
+
+
+def test_failure_reason_uses_the_handlers_own_wording():
+    """A Lambda failure arrives as JSON, so the exact message is recoverable."""
+    from functions.write_result.app import failure_reason
+    cause = json.dumps({
+        "errorType": "DocumentUnreadable",
+        "errorMessage": "This looks like a scanned PDF ... Upload the case as a .txt file instead.",
+        "trace": ["..."],
+    })
+    assert failure_reason({"error": {"Cause": cause}}).endswith(".txt file instead.")
+
+
+def test_failure_reason_still_handles_a_bare_stack_trace():
+    from functions.write_result.app import failure_reason
+    reason = failure_reason({"error": {"Cause": "ClientError: SubscriptionRequiredException ..."}})
+    assert "Textract is not enabled" in reason

@@ -1,4 +1,4 @@
-import boto3, os, re
+import boto3, json, os, re
 from decimal import Decimal
 from datetime import datetime, timezone
 from retention import expires_at
@@ -6,7 +6,13 @@ from retention import expires_at
 dynamodb = boto3.resource("dynamodb")
 TABLE = os.environ["CASES_TABLE"]
 
-KEY_PATTERN = re.compile(r"uploads/([^/.]+)\.(?:txt|pdf)$")
+# Any extension. Restricting this to txt|pdf meant an unexpected upload could
+# not be traced back to its case and was orphaned in UPLOADED for ever.
+KEY_PATTERN = re.compile(r"uploads/([^/.]+)\.[A-Za-z0-9]+$")
+
+# textract_extract raises this with wording already meant for a human, so its
+# message is used verbatim rather than being re-described here.
+READABLE_ERRORS = {"DocumentUnreadable"}
 
 
 def resolve_case_id(event):
@@ -24,16 +30,37 @@ def resolve_case_id(event):
 
 
 def failure_reason(event):
-    """Surface the real cause so the case register explains itself."""
+    """Surface the real cause so the case register explains itself.
+
+    A Lambda task failure arrives with Cause as a JSON document carrying
+    errorType and errorMessage, so the handler's own wording can be lifted out
+    exactly instead of being guessed at from a substring of a stack trace.
+    """
     error = event.get("error") or {}
     cause = str(error.get("Cause") or error.get("Error") or "").strip()
-    if "SubscriptionRequiredException" in cause:
+
+    error_type, message = "", ""
+    try:
+        parsed = json.loads(cause)
+        if isinstance(parsed, dict):
+            error_type = str(parsed.get("errorType") or "")
+            message = str(parsed.get("errorMessage") or "").strip()
+    except (TypeError, ValueError):
+        pass
+
+    if error_type in READABLE_ERRORS and message:
+        return message[:600]
+
+    # Older executions, and failures raised outside our own handlers, still
+    # arrive as a bare stack trace.
+    haystack = message or cause
+    if "SubscriptionRequiredException" in haystack:
         return ("The document could not be read: Amazon Textract is not enabled for this AWS "
                 "account. Upload the case as a .txt file, or enable Textract, then re-upload.")
-    if "Textract" in cause or "TimeoutError" in cause:
-        return f"The document could not be read by Textract. {cause[:300]}"
-    if cause:
-        return f"Processing failed before the rule engine could run. {cause[:300]}"
+    if "Textract" in haystack or "TimeoutError" in haystack:
+        return f"The document could not be read by Textract. {haystack[:300]}"
+    if haystack:
+        return f"Processing failed before the rule engine could run. {haystack[:300]}"
     return "Processing failed before the rule engine could run. Re-upload the document or verify it manually."
 
 

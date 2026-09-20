@@ -43,9 +43,11 @@
 
   function validate(file) {
     const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
-    const isText = file.type === "text/plain" || /\.txt$/i.test(file.name);
+    // The backend routes on the file's actual bytes, not this name, so a text
+    // file always takes the text route even when Textract is unavailable.
+    const isText = /^text\//.test(file.type || "") || /\.(txt|text|md)$/i.test(file.name);
     if (!isPdf && !isText) {
-      return `“${file.name}” is not a PDF or .txt file. Upload a chargesheet or FIR as a PDF, or paste-ready text as .txt.`;
+      return `“${file.name}” is not a PDF or text file. Upload a chargesheet or FIR as a PDF, or paste-ready text as .txt.`;
     }
     if (file.size > MAX_BYTES) {
       return `“${file.name}” is larger than 20MB. Split or compress it and try again.`;
