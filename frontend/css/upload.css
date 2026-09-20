@@ -1,0 +1,18 @@
+.upload-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr); align-items: start; gap: var(--space-6); }
+.dropzone { border: 1.5px dashed var(--color-border-strong); background: var(--color-paper-raised); padding: clamp(2.5rem, 8vw, 5rem) 1.5rem; text-align: center; transition: background .15s, border-color .15s; }
+.dropzone:hover, .dropzone:focus-visible, .dropzone.is-dragover { border-color: var(--color-primary); background: var(--color-primary-tint); }
+.dropzone-symbol { display: block; margin-bottom: var(--space-3); color: var(--color-primary); font-size: 2.4rem; line-height: 1; }
+.dropzone-title { margin-bottom: var(--space-1); color: var(--color-ink); font-weight: 700; }
+.dropzone-sub, .upload-status-text { color: var(--color-ink-soft); font-size: .85rem; }
+.upload-progress-card { border: 1px solid var(--color-border); background: var(--color-paper-raised); box-shadow: var(--shadow-panel); padding: var(--space-5); }
+.upload-filename { margin-bottom: var(--space-4); font-weight: 700; overflow-wrap: anywhere; }
+.stepper { display: flex; flex-direction: column; gap: 0; margin: 0 0 var(--space-4); padding: 0; list-style: none; }
+.stepper li { display: flex; position: relative; align-items: center; gap: var(--space-3); min-height: 2.25rem; color: var(--color-ink-faint); font-size: .9rem; }
+.stepper li:not(:last-child)::before { position: absolute; top: 1.65rem; left: 7px; width: 1px; height: 1rem; background: var(--color-border-strong); content: ""; }
+.step-dot { width: 15px; height: 15px; flex: none; border: 1px solid var(--color-border-strong); border-radius: 50%; background: var(--color-paper-raised); }
+.stepper li.is-done { color: var(--color-ink); }
+.stepper li.is-done .step-dot, .stepper li.is-done:not(:last-child)::before { border-color: var(--color-success); background: var(--color-success); }
+.stepper li.is-active { color: var(--color-primary); font-weight: 700; }
+.stepper li.is-active .step-dot { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-tint); }
+.upload-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
+@media (max-width: 780px) { .upload-layout { grid-template-columns: 1fr; } }
