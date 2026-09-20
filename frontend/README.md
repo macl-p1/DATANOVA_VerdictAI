@@ -6,14 +6,49 @@ Lambda; this app renders the result and never re-derives it.
 
 ## Point it at a backend
 
-After `sam deploy`, copy the `ApiUrl` stack output and either set it once in the
-browser:
+[`js/config.js`](js/config.js) already carries the deployed stack's `ApiUrl`,
+`UserPoolId` and `UserPoolClientId`. None of the three is a secret: the client
+has no secret because a browser cannot keep one, and the API is protected by the
+Cognito authorizer rather than by its URL being hard to guess.
+
+To point the app at a different stack, take those values from `sam deploy` and
+either edit the fallbacks in `config.js`, or override them per-machine:
 
 ```js
 localStorage.setItem("verdictai-api-base", "https://xxxx.execute-api.us-east-1.amazonaws.com/prod")
+localStorage.setItem("verdictai-user-pool-id", "us-east-1_xxxxxxxxx")
+localStorage.setItem("verdictai-client-id", "xxxxxxxxxxxxxxxxxxxxxxxxxx")
 ```
 
-or paste it into `FALLBACK` in [`js/config.js`](js/config.js) to bake it in.
+## Signing in
+
+Every `/cases` endpoint sits behind a Cognito authorizer. An unauthenticated
+request is rejected by API Gateway with 401 before any Lambda runs, so the case
+register cannot be read or written without an account.
+
+There is **no public sign-up** — this is a register of people in detention, not
+a consumer app. An administrator creates each account:
+
+```bash
+POOL=us-east-1_agAuQxfKR   # UserPoolId from the stack outputs
+
+aws cognito-idp admin-create-user \
+  --user-pool-id $POOL \
+  --username person@example.org \
+  --user-attributes Name=email,Value=person@example.org Name=email_verified,Value=true \
+  --temporary-password 'SomethingTemporary-2026!' \
+  --message-action SUPPRESS      # drop this to have Cognito email the invite
+```
+
+The account starts in `FORCE_CHANGE_PASSWORD`: on first sign-in the login screen
+asks for a new password before issuing any token. Passwords must be at least 12
+characters with upper and lower case, a number and a symbol.
+
+`js/auth.js` talks to Cognito's `InitiateAuth` JSON endpoint with plain `fetch`,
+so no AWS SDK is bundled. Tokens are held in `sessionStorage` — per tab, cleared
+when the tab closes. The ID token lasts 60 minutes and is refreshed
+automatically; the refresh token lasts a day. A 401 from the API signs the user
+out rather than leaving stale data on screen.
 
 ## Run locally
 
@@ -119,10 +154,12 @@ written before this existed have no `expiresAt` and will not expire on their own
 
 ## Known gaps
 
-- **Sign-in is cosmetic, and the API is unauthenticated.** It gates the screens
-  from `sessionStorage` only. The API Gateway stage has no authorizer, so anyone
-  with the URL can read every case record and create new ones. This is the
-  largest outstanding problem and needs a real authorizer.
+- **Tokens are readable by any script on the page.** `sessionStorage` is not
+  protected from XSS. The exposure is bounded by the 60-minute token and the
+  one-day refresh token, but a stricter design would keep the refresh token in
+  an HttpOnly cookie behind a small token endpoint.
+- **No MFA, and no roles.** Every account sees every case. Cognito supports both;
+  neither is configured.
 - **The statute values have not been checked by a lawyer.** They were compiled
   with model assistance from the sources in each row's `sourceUrl`, and
   `BNS#305`, `BNS#310(2)` and `BNS#109(1)` are the least certain. They decide

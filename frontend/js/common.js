@@ -10,7 +10,6 @@
  */
 window.Verdict = (() => {
   const DAY = 86400000;
-  const USER_KEY = "verdictai-user";
   const THEME_KEY = "verdictai-theme";
 
   // Mirrors FLAG_TO_STATUS in backend/shared/schemas.py. The backend flag is
@@ -101,16 +100,17 @@ window.Verdict = (() => {
   function toggleTheme() { const current = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"); const next = current === "dark" ? "light" : "dark"; localStorage.setItem(THEME_KEY, next); applyTheme(next); }
   function initTheme() { applyTheme(localStorage.getItem(THEME_KEY)); document.querySelectorAll("[data-theme-toggle]").forEach((button) => button.addEventListener("click", toggleTheme)); }
 
-  // Sign-in is a client-side gate for the demo only. The API Gateway stage has
-  // no authorizer, so this keeps the screens coherent — it does not protect
-  // anything. Putting a real authorizer in front of /cases is still open work.
-  function user() { return sessionStorage.getItem(USER_KEY); }
-  function login(email) { sessionStorage.setItem(USER_KEY, email); window.location.assign("dashboard.html"); }
+  // Sign-in is enforced by the Cognito authorizer on the API, not here. This
+  // only keeps the screens coherent: it hides pages from a signed-out user and
+  // wires the sign-out button. Skipping it would gain nothing — every API call
+  // is rejected without a valid token.
+  function user() { return VerdictAuth.email(); }
   function requireLogin() {
-    const email = user();
-    if (!email) { window.location.replace("login.html"); return false; }
+    if (!VerdictAuth.isSignedIn()) { window.location.replace("login.html"); return false; }
+    const email = user() || "";
     document.querySelectorAll(".app-user-email").forEach((node) => { node.textContent = email; });
-    document.querySelectorAll("[data-logout]").forEach((button) => button.addEventListener("click", () => { sessionStorage.removeItem(USER_KEY); window.location.assign("login.html"); }));
+    document.querySelectorAll("[data-logout]").forEach((button) =>
+      button.addEventListener("click", () => VerdictAuth.signOut()));
     return true;
   }
   function caseLink(id) { return `case-detail.html?id=${encodeURIComponent(id)}`; }
@@ -120,6 +120,6 @@ window.Verdict = (() => {
     flags, rank, FLAG_TO_STATUS, STATUS_TO_FLAG, FACT_LABELS,
     statusOf, isPending, displayName,
     formatDate, formatTimestamp, formatSection, formatSections, formatBool,
-    daysBetween, escapeHtml, user, login, requireLogin, caseLink,
+    daysBetween, escapeHtml, user, requireLogin, caseLink,
   };
 })();

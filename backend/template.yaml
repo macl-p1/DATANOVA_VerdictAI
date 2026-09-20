@@ -107,14 +107,88 @@ Resources:
         - AttributeName: code
           KeyType: HASH
 
+  # Case records hold the accused's name, charges and arrest date. Until this
+  # existed the API had no authorizer at all, so anyone with the URL could read
+  # every record and create new ones.
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${AWS::StackName}-users"
+      # Staff accounts are provisioned by an administrator. There is no public
+      # sign-up: this is a register of people in detention, not a consumer app.
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes: [email]
+      AutoVerifiedAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: verdictai-web
+      # A browser cannot keep a secret, so the client has none. Security rests
+      # on the user's password and the short-lived tokens below.
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
   Api:
     Type: AWS::Serverless::Api
     Properties:
       StageName: prod
       Cors:
         AllowMethods: "'GET,POST,OPTIONS'"
-        AllowHeaders: "'Content-Type'"
+        AllowHeaders: "'Content-Type,Authorization'"
         AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuth
+        # The preflight OPTIONS carries no Authorization header by definition,
+        # so it must stay open or every browser call fails before it starts.
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          CognitoAuth:
+            UserPoolArn: !GetAtt UserPool.Arn
+      # API Gateway rejects an unauthenticated request itself, without reaching
+      # a Lambda, so these responses need CORS headers of their own or the
+      # browser reports an opaque network failure instead of "signed out".
+      GatewayResponses:
+        UNAUTHORIZED:
+          StatusCode: 401
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+          ResponseTemplates:
+            "application/json": '{"error":"Your session has expired. Sign in again."}'
+        ACCESS_DENIED:
+          StatusCode: 403
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+          ResponseTemplates:
+            "application/json": '{"error":"You do not have access to this case register."}'
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin: "'*'"
+              Access-Control-Allow-Headers: "'Content-Type,Authorization'"
 
   UploadUrlFunction:
     Type: AWS::Serverless::Function
@@ -374,6 +448,15 @@ Outputs:
   ApiUrl:
     Description: API Gateway base URL
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  UserPoolId:
+    Description: Cognito user pool backing the case register sign-in
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Public client id used by the browser (not a secret)
+    Value: !Ref UserPoolClient
+  Region:
+    Description: Region the user pool lives in
+    Value: !Ref AWS::Region
   StateMachineArn:
     Description: Step Functions state machine ARN
     Value: !Ref ProcessCaseStateMachine

@@ -29,14 +29,34 @@ window.VerdictApi = (() => {
 
   async function request(path, options = {}) {
     const base = requireBase();
+
+    // Every case endpoint sits behind the Cognito authorizer, so a request
+    // without a valid token is rejected by API Gateway before any Lambda runs.
+    const token = await VerdictAuth.idToken();
+    if (!token) {
+      VerdictAuth.signOut();
+      throw new ApiError("Your session has expired. Sign in again.", 401);
+    }
+
     let response;
     try {
       response = await fetch(`${base}${path}`, {
         ...options,
-        headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
+          ...(options.headers || {}),
+        },
       });
     } catch (cause) {
       throw new ApiError("Could not reach the API. Check the API URL and that the stack is deployed.", 0);
+    }
+
+    // The token was rejected — expired mid-flight, or revoked. Send them back
+    // to sign in rather than showing a bare error on a page of stale data.
+    if (response.status === 401 || response.status === 403) {
+      VerdictAuth.signOut();
+      throw new ApiError("Your session has expired. Sign in again.", response.status);
     }
 
     const raw = await response.text();
