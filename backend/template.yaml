@@ -2,6 +2,22 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: VerdictAI backend
 
+Parameters:
+  CaseRetentionDays:
+    Type: Number
+    Default: 90
+    MinValue: 1
+    Description: >-
+      Days a case record is kept before DynamoDB TTL removes it. These rows hold
+      the accused's name, charges and arrest date, so they should not outlive
+      their purpose.
+  ConfidenceThreshold:
+    Type: String
+    Default: "0.90"
+    Description: >-
+      Minimum extraction confidence for any fact the rule engine relies on.
+      Anything below this is flagged NEEDS_REVIEW rather than acted on.
+
 Globals:
   Function:
     Runtime: python3.13
@@ -14,6 +30,8 @@ Globals:
         CASES_TABLE: !Ref CasesTable
         STATUTES_TABLE: !Ref StatutesTable
         UPLOAD_BUCKET: !Ref UploadBucket
+        CASE_RETENTION_DAYS: !Ref CaseRetentionDays
+        CONFIDENCE_THRESHOLD: !Ref ConfidenceThreshold
 
 Resources:
 
@@ -62,6 +80,12 @@ Resources:
       KeySchema:
         - AttributeName: caseId
           KeyType: HASH
+      # These rows hold personal legal data derived from the uploaded document.
+      # The upload bucket expires after 7 days; without this the derived facts
+      # were kept indefinitely.
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
       GlobalSecondaryIndexes:
         - IndexName: flag-daysOverdue-index
           KeySchema:
@@ -113,9 +137,16 @@ Resources:
     Properties:
       CodeUri: functions/textract_extract/
       Handler: app.lambda_handler
-      Timeout: 60
+      # Must stay above the Textract polling budget in app.py (~2 minutes).
+      Timeout: 300
       Policies:
         - S3ReadPolicy: { BucketName: !Ref UploadBucket }
+        - Statement:
+            - Effect: Allow
+              Action:
+                - textract:StartDocumentTextDetection
+                - textract:GetDocumentTextDetection
+              Resource: "*"
 
   ExtractFunction:
     Type: AWS::Serverless::Function
@@ -164,6 +195,30 @@ Resources:
       Handler: app.lambda_handler
       Policies:
         - DynamoDBCrudPolicy: { TableName: !Ref CasesTable }
+
+  # Eligibility under s.479 arrives with time served, so a flag computed once at
+  # upload goes stale. This re-runs the engine daily over cases that can still
+  # move, using the facts already stored (no re-extraction).
+  ReevaluateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/reevaluate/
+      Handler: app.lambda_handler
+      Timeout: 300
+      Environment:
+        Variables:
+          EXPLAIN_FUNCTION_NAME: !Ref ExplainFunction
+      Policies:
+        - DynamoDBCrudPolicy: { TableName: !Ref CasesTable }
+        - DynamoDBReadPolicy: { TableName: !Ref StatutesTable }
+        - LambdaInvokePolicy: { FunctionName: !Ref ExplainFunction }
+      Events:
+        Daily:
+          Type: Schedule
+          Properties:
+            Schedule: cron(30 1 * * ? *)
+            Description: Re-evaluate open undertrial cases against today's date
+            Enabled: true
 
   QueryFunction:
     Type: AWS::Serverless::Function
