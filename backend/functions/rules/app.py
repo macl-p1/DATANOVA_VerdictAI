@@ -1,103 +1,44 @@
-import boto3, os
+"""Evaluates a freshly extracted case against Section 479 BNSS.
+
+The engine itself lives in the shared layer (rules_engine.py) because the
+scheduled reevaluate Lambda runs the same logic. This module is only the
+pipeline adapter: it loads statutes, calls evaluate(), and shapes the result
+for the next step.
+"""
 from datetime import date
-from schemas import Extracted, RuleResult
 
-dynamodb = boto3.resource("dynamodb")
-STATUTES_TABLE = os.environ["STATUTES_TABLE"]
-
-_statutes_cache = None
-
-def load_statutes():
-    global _statutes_cache
-    if _statutes_cache is not None:
-        return _statutes_cache
-
-    table = dynamodb.Table(STATUTES_TABLE)
-    resp = table.scan()
-    items = resp.get("Items", [])
-
-    while "LastEvaluatedKey" in resp:
-        resp = table.scan(ExclusiveStartKey=resp["LastEvaluatedKey"])
-        items.extend(resp.get("Items", []))
-
-    _statutes_cache = {
-        item["code"]: {
-            "maxYears": float(item["maxYears"]),
-            "lifeOrDeath": bool(item["lifeOrDeath"]),
-        }
-        for item in items
-    }
-    return _statutes_cache
-
-
-def evaluate(e: Extracted, statutes: dict[str, dict], today: date) -> RuleResult:
-    if not e.arrest_date or not e.sections:
-        return RuleResult(
-            flag="NEEDS_REVIEW", days_in_custody=None, days_overdue=None,
-            rule_fired="Missing arrest date or charged sections"
-        )
-
-    unknown = [s for s in e.sections if s not in statutes]
-    if unknown:
-        return RuleResult(
-            flag="NEEDS_REVIEW", days_in_custody=None, days_overdue=None,
-            rule_fired=f"Unknown section(s): {unknown}"
-        )
-
-    if any(statutes[s]["lifeOrDeath"] for s in e.sections):
-        return RuleResult(
-            flag="NOT_ELIGIBLE", days_in_custody=None, days_overdue=None,
-            rule_fired="Offence punishable with death or life imprisonment"
-        )
-
-    if e.other_pending_cases:
-        return RuleResult(
-            flag="NOT_ELIGIBLE", days_in_custody=None, days_overdue=None,
-            rule_fired="Other cases pending against the accused"
-        )
-
-    end_date = e.release_date or today
-    days_in_custody = (end_date - e.arrest_date).days
-
-    max_years = max(statutes[s]["maxYears"] for s in e.sections)
-    max_days = max_years * 365
-
-    if days_in_custody >= max_days:
-        return RuleResult(
-            flag="PAST_MAX", days_in_custody=days_in_custody,
-            days_overdue=days_in_custody - max_days,
-            rule_fired=f"Served {days_in_custody}d, exceeds max sentence of {max_days:.0f}d"
-        )
-
-    if days_in_custody >= max_days // 2:
-        return RuleResult(
-            flag="PAST_HALF", days_in_custody=days_in_custody,
-            days_overdue=days_in_custody - max_days // 2,
-            rule_fired=f"Served over half the max sentence ({max_days // 2:.0f}d)"
-        )
-
-    if e.first_time_offender and days_in_custody >= max_days // 3:
-        return RuleResult(
-            flag="PAST_THIRD", days_in_custody=days_in_custody,
-            days_overdue=days_in_custody - max_days // 3,
-            rule_fired="First-time offender past one-third threshold"
-        )
-
-    return RuleResult(
-        flag="NOT_YET", days_in_custody=days_in_custody,
-        days_overdue=None, rule_fired="Below all thresholds"
-    )
+from schemas import Extracted
+from statutes import load_statutes
+# Re-exported so tests and the reevaluate Lambda have one import site.
+from rules_engine import (  # noqa: F401
+    evaluate, normalize_section, unverified_facts, implausible_dates, CONFIDENCE_THRESHOLD,
+)
 
 
 def lambda_handler(event, context):
     case_id = event.pop("caseId", None)
+
+    # extract/app.py hands us a pre-decided result when it could not parse the
+    # document. Forward it untouched so the reason reaches the UI instead of
+    # blowing up validation and marking the whole case FAILED.
+    if "flag" in event:
+        event["caseId"] = case_id
+        return event
+
     extracted = Extracted(**event)
 
-    statutes = load_statutes()
-
-    result = evaluate(extracted, statutes, today=date.today())
+    result = evaluate(extracted, load_statutes(), today=date.today())
     output = result.model_dump(mode="json")
     output["caseId"] = case_id
+    # Everything the UI needs to render the case, carried through the pipeline.
+    # The rule engine does not use these, but dropping them here is what
+    # previously left the case record without names, evidence or source quotes.
+    output["accused_name"] = extracted.accused_name
     output["arrest_date"] = extracted.arrest_date.isoformat() if extracted.arrest_date else None
-    output["sections"] = extracted.sections
+    output["release_date"] = extracted.release_date.isoformat() if extracted.release_date else None
+    output["in_custody"] = extracted.in_custody
+    output["first_time_offender"] = extracted.first_time_offender
+    output["other_pending_cases"] = extracted.other_pending_cases
+    output["sections"] = [normalize_section(s) or s for s in extracted.sections]
+    output["evidence"] = {k: v.model_dump(mode="json") for k, v in extracted.evidence.items()}
     return output

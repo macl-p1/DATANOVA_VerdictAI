@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Case detail | VerdictAI</title>
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/case-detail.css">
+  <script src="../js/config.js" defer></script>
+  <script src="../js/api.js" defer></script>
+  <script src="../js/common.js" defer></script>
+  <script src="../js/case-detail.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header-left"><a class="app-wordmark" href="dashboard.html">VerdictAI</a><nav class="app-nav" aria-label="Primary"><a class="nav-link" href="upload.html">Upload</a><a class="nav-link" href="dashboard.html" aria-current="page">Case register</a></nav></div>
+      <div class="app-header-right"><button type="button" class="theme-toggle theme-toggle-compact" data-theme-toggle aria-label="Toggle dark mode" aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true"></span></button><span class="app-user-email"></span><button type="button" class="btn btn-ghost btn-small" data-logout>Sign out</button></div>
+    </header>
+    <main class="view-root"><section id="case-detail-content" aria-live="polite"></section></main>
+    <footer class="app-footer"><p>Flags are produced by a deterministic rule engine, not a model. Verify every fact against the original case record before acting. This is not legal advice.</p></footer>
+  </div>
+</body>
+</html>

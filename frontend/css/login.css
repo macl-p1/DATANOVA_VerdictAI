@@ -1,0 +1,19 @@
+.login-screen { display: grid; min-height: 100vh; min-height: 100dvh; grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr); }
+.login-brand { display: flex; align-items: center; background: var(--color-primary); color: var(--color-on-primary); padding: clamp(2rem, 7vw, 7rem); }
+.login-brand-inner { max-width: 31rem; margin: 0 auto; }
+.login-eyebrow { margin-bottom: var(--space-3); color: rgba(255,255,255,.72); font-size: .82rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.login-wordmark { color: inherit; font-size: clamp(3rem, 6vw, 5.5rem); letter-spacing: -.04em; }
+.login-tagline { max-width: 44ch; margin-top: var(--space-5); color: rgba(255,255,255,.88); line-height: 1.65; }
+.login-stats { display: grid; gap: var(--space-4); margin: var(--space-7) 0 0; border-top: 1px solid rgba(255,255,255,.25); padding-top: var(--space-5); }
+.login-stats div { display: grid; grid-template-columns: 11rem 1fr; gap: var(--space-4); }
+.login-stats dt { color: rgba(255,255,255,.65); font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+.login-stats dd { margin: 0; font-family: var(--font-serif); font-size: 1.05rem; }
+.login-form-panel { display: flex; align-items: center; justify-content: center; position: relative; background: var(--color-paper-raised); padding: 2rem; }
+.login-form-wrap { width: 100%; max-width: 24rem; }
+.login-form-wrap > .theme-toggle { position: absolute; top: 1.25rem; right: 1.25rem; }
+.login-form-title { margin-top: var(--space-6); font-size: 1.7rem; }
+.login-form-sub { display: block; margin: var(--space-1) 0 var(--space-5); color: var(--color-ink-soft); font-size: .92rem; }
+.password-row { display: flex; position: relative; }
+.password-row input { padding-right: 4.5rem; }
+.password-toggle { position: absolute; top: 50%; right: .4rem; border: 0; background: transparent; color: var(--color-primary); padding: .35rem; font-size: .78rem; font-weight: 700; transform: translateY(-50%); }
+@media (max-width: 780px) { .login-screen { display: block; } .login-brand { min-height: 265px; padding: 2rem 1.5rem; } .login-stats { display: none; } .login-wordmark { font-size: 3.3rem; } .login-form-panel { min-height: calc(100dvh - 265px); padding: 3rem 1.5rem; } }

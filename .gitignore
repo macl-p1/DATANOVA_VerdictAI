@@ -24,3 +24,15 @@ artifacts/*
 !artifacts/**/.gitkeep
 *.pdf
 *.log
+
+# SAM build output and local deploy state
+.aws-sam/
+samconfig-*.toml
+
+# Lambda invoke dumps and scratch events kept from manual testing
+backend/*-output.json
+backend/*-output-*.json
+backend/execution-history*.json
+backend/*-test-event*.json
+backend/test-*-event.json
+backend/test-case-*.txt
