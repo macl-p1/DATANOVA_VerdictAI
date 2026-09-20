@@ -64,14 +64,15 @@ def evaluate(e: Extracted, statutes: dict[str, dict], today: date) -> RuleResult
         days_overdue=None, rule_fired="Below all thresholds"
     )
 def lambda_handler(event, context):
+    case_id = event.pop("caseId", None)
     extracted = Extracted(**event)
 
-    # TODO: replace with a real DynamoDB read from the Statutes table
     statutes = {
         "IPC#379": {"maxYears": 3, "lifeOrDeath": False},
         "IPC#302": {"maxYears": 0, "lifeOrDeath": True},
     }
 
     result = evaluate(extracted, statutes, today=date.today())
-
-    return {"statusCode": 200, "body": result.model_dump_json()}
+    output = result.model_dump(mode="json")
+    output["caseId"] = case_id
+    return output

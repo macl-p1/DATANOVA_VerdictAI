@@ -54,12 +54,12 @@ def lambda_handler(event, context):
 
     try:
         extracted = Extracted.model_validate_json(raw)
-        return {"statusCode": 200, "body": extracted.model_dump_json()}
+        result = extracted.model_dump(mode="json")
+        result["caseId"] = event.get("caseId")
+        return result
     except Exception as e:
         return {
-            "statusCode": 200,
-            "body": json.dumps({
-                "flag": "NEEDS_REVIEW",
-                "rule_fired": f"Extraction failed validation: {str(e)}"
-            })
+            "flag": "NEEDS_REVIEW",
+            "rule_fired": f"Extraction failed validation: {str(e)}",
+            "caseId": event.get("caseId"),
         }

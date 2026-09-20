@@ -20,7 +20,7 @@ def build_explanation_messages(rule_result: dict) -> list:
     return [{"role": "user", "content": [{"text": f"Explain this result:\n\n{context}"}]}]
 
 def lambda_handler(event, context):
-    rule_result = event["ruleResult"]
+    rule_result = event
 
     resp = bedrock.converse(
         modelId=MODEL_ID,
@@ -35,6 +35,7 @@ def lambda_handler(event, context):
 
     try:
         parsed = json.loads(raw)
-        return {"statusCode": 200, "body": json.dumps({"explanation": parsed["explanation"]})}
+        rule_result["explanation"] = parsed["explanation"]
     except Exception:
-        return {"statusCode": 200, "body": json.dumps({"explanation": rule_result["rule_fired"]})}
+        rule_result["explanation"] = rule_result["rule_fired"]
+    return rule_result
