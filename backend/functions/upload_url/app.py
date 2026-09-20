@@ -9,11 +9,14 @@ dynamodb = boto3.resource("dynamodb")
 BUCKET = os.environ["UPLOAD_BUCKET"]
 TABLE = os.environ["CASES_TABLE"]
 
-# textract_extract reads .txt directly and sends anything else to Textract, so
-# the key's extension decides the path. Anything unrecognised is treated as PDF.
+# Only used to sign the upload with a sensible Content-Type. It does not decide
+# how the document is read: textract_extract sniffs the bytes, so a text file
+# named .pdf still takes the text route and never needs Textract.
 CONTENT_TYPES = {
     "pdf": "application/pdf",
     "txt": "text/plain",
+    "text": "text/plain",
+    "md": "text/markdown",
 }
 
 

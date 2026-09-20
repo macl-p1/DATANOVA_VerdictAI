@@ -132,25 +132,39 @@ behind the answer:
 
 ## Upload formats
 
-`.txt` works end to end today. **PDF does not**, because Amazon Textract is not
-enabled on the AWS account the stack is deployed to — `StartDocumentTextDetection`
-returns `SubscriptionRequiredException`. The pipeline handles this correctly: the
-case is marked `FAILED` within seconds and the register shows
+How a document is read is decided by its **bytes**, not its extension:
 
-> The document could not be read: Amazon Textract is not enabled for this AWS
-> account. Upload the case as a .txt file, or enable Textract, then re-upload.
+| What you upload | Route | Needs Textract |
+|---|---|---|
+| `.txt`, `.text`, `.md` | decoded directly | no |
+| anything that decodes as UTF-8 text, whatever it is named | decoded directly | no |
+| a real PDF | Amazon Textract | yes |
 
-Enable Textract in the account (it is a per-account service activation, not an
-IAM change — the Lambda already holds the right permissions) and PDFs will work
-with no code change.
+The text route has no dependency on Textract at all, so it keeps working when
+Textract is disabled, throttled, or the account has not been approved for it.
+A text file uploaded with a `.pdf` name still goes through fine.
 
-## Data retention
+**PDFs need Textract enabled on the AWS account.** It is a per-account opt-in
+service; until it is approved every call fails with
+`SubscriptionRequiredException`. Nothing needs changing in this repo when it is
+switched on — the code path is already deployed and will simply start
+succeeding. Until then a PDF upload is marked `FAILED` within seconds and the
+register explains why:
 
-Case rows hold the accused's name, charges and arrest date. The table has TTL
-enabled on `expiresAt`, set from `CaseRetentionDays` (default 90) and refreshed
-on every write. DynamoDB removes expired items within roughly 48 hours of the
-timestamp, so treat it as a retention policy rather than a guarantee. Rows
-written before this existed have no `expiresAt` and will not expire on their own.
+> This looks like a scanned PDF, which needs Amazon Textract to read, and
+> Textract is not available to this AWS account yet. Upload the case as a .txt
+> file instead, or enable Textract and re-upload.
+
+There is deliberately **no home-grown PDF parser**. Pulling bytes out of PDF
+content streams without a real library produces mangled text, and the pipeline
+would then hand that to a model and record whatever facts it invented. For a
+tool that decides how long someone has been in custody, failing with a clear
+reason beats guessing.
+
+Transient Textract failures (throttling, `InternalServerError`) are retried
+with backoff. A missing subscription or a corrupt document is reported
+immediately — retrying cannot fix either, and doing so would burn the Lambda
+timeout.
 
 ## Known gaps
 
