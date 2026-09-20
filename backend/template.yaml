@@ -186,6 +186,30 @@ Resources:
             Path: /cases/{caseId}
             Method: GET
 
+  BailDraftFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/bail_draft/
+      Handler: app.lambda_handler
+      Timeout: 120
+      Policies:
+        - DynamoDBReadPolicy: { TableName: !Ref CasesTable }
+        - Statement:
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource:
+                - !Sub "arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/us.meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-east-1::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-east-2::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+                - "arn:aws:bedrock:us-west-2::foundation-model/meta.llama4-maverick-17b-instruct-v1:0"
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /cases/{caseId}/bail-draft
+            Method: POST
+
   ProcessCaseStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:

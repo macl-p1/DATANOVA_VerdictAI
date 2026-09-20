@@ -15,6 +15,8 @@ def lambda_handler(event, context):
             "daysOverdue": event.get("days_overdue") or 0,
             "ruleFired": event.get("rule_fired", ""),
             "explanation": event.get("explanation", ""),
+            "arrestDate": event.get("arrest_date") or "",
+            "sections": event.get("sections") or [],
             "updatedAt": datetime.now(timezone.utc).isoformat(),
         }
     else:
