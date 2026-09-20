@@ -1,0 +1,59 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in | VerdictAI</title>
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/login.css">
+  <script src="../js/common.js" defer></script>
+  <script src="../js/login.js" defer></script>
+</head>
+<body class="login-page">
+  <main class="login-screen">
+    <section class="login-brand" aria-labelledby="brand-title">
+      <div class="login-brand-inner">
+        <p class="login-eyebrow">Case register</p>
+        <h1 id="brand-title" class="login-wordmark">VerdictAI</h1>
+        <p class="login-tagline">A statute-bound checker for undertrial detention. Every flag traces back to a section, a date and a rule - nothing here is guessed.</p>
+        <dl class="login-stats">
+          <div><dt>Section relied on</dt><dd>479 BNSS (formerly 436A CrPC)</dd></div>
+          <div><dt>What decides eligibility</dt><dd>Deterministic code, not a model</dd></div>
+          <div><dt>What a model does</dt><dd>Reads documents and explains - never rules</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="login-form-panel" aria-labelledby="sign-in-title">
+      <div class="login-form-wrap">
+        <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false">
+          <span class="theme-toggle-icon" aria-hidden="true"></span>
+          <span class="theme-toggle-label">Dark mode</span>
+        </button>
+        <h2 id="sign-in-title" class="login-form-title">Sign in</h2>
+        <p class="login-form-sub">For legal-aid lawyers and Undertrial Review Committee members.</p>
+
+        <form id="login-form" novalidate>
+          <div id="login-alert" class="form-alert" role="alert" hidden></div>
+          <div class="field">
+            <label for="email">Work email</label>
+            <input type="email" id="email" autocomplete="username" placeholder="lawyer@legalaidsociety.in" required>
+            <p class="field-error" id="email-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-row">
+              <input type="password" id="password" autocomplete="current-password" placeholder="Enter your password" required minlength="6">
+              <button type="button" id="toggle-password" class="password-toggle" aria-pressed="false" aria-label="Show password">Show</button>
+            </div>
+            <p class="field-error" id="password-error" hidden></p>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+          <button type="button" id="demo-login" class="btn btn-ghost btn-block">Continue with demo account</button>
+        </form>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
