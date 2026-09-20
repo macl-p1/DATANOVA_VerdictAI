@@ -60,6 +60,6 @@ def lambda_handler(event, context):
     except Exception as e:
         return {
             "flag": "NEEDS_REVIEW",
-            "rule_fired": f"Extraction failed validation: {str(e)}",
+            "rule_fired": "Could not extract required facts from the document — insufficient information to determine eligibility.",
             "caseId": event.get("caseId"),
         }
