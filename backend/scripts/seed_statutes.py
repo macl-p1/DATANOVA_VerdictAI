@@ -19,7 +19,6 @@ def seed(csv_path, table_name):
                 "maxYears": Decimal(row["maxYears"]),
                 "lifeOrDeath": parse_bool(row["lifeOrDeath"]),
                 "sourceUrl": row.get("sourceUrl", ""),
-                "verifiedBy": row.get("verifiedBy", ""),
                 "deathPossible": parse_bool(row.get("deathPossible", "false")),
                 "lifePossible": parse_bool(row.get("lifePossible", "false")),
                 "gradedOffence": parse_bool(row.get("gradedOffence", "false")),

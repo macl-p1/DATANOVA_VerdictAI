@@ -1,6 +1,7 @@
 from datetime import date
 from functions.rules.app import evaluate
 from shared.schemas import Extracted
+from tests.helpers import confident_evidence
 
 STATUTES = {
     "IPC#379": {"maxYears": 3, "lifeOrDeath": False},   # theft
@@ -11,7 +12,7 @@ def make(**kw):
     defaults = dict(
         sections=["IPC#379"], arrest_date=date(2023, 1, 1), in_custody=True,
         release_date=None, first_time_offender=True, other_pending_cases=False,
-        evidence={}
+        evidence=confident_evidence()
     )
     defaults.update(kw)
     return Extracted(**defaults)

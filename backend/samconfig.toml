@@ -2,6 +2,10 @@ version = 0.1
 
 [default.deploy.parameters]
 stack_name = "verdictai"
+# CloudFormation reuses an existing stack's parameter values, so editing a
+# Default in template.yaml does nothing on redeploy. They are pinned here so
+# the deployed values are reproducible and reviewable.
+parameter_overrides = "ConfidenceThreshold=0.90 CaseRetentionDays=90"
 resolve_s3 = true
 s3_prefix = "verdictai"
 region = "us-east-1"
