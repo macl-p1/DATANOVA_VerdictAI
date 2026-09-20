@@ -98,4 +98,6 @@ def lambda_handler(event, context):
     result = evaluate(extracted, statutes, today=date.today())
     output = result.model_dump(mode="json")
     output["caseId"] = case_id
+    output["arrest_date"] = extracted.arrest_date.isoformat() if extracted.arrest_date else None
+    output["sections"] = extracted.sections
     return output
